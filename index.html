@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TEPU - Raccolta Disponibilità</title>
+    
+    <!-- PWA Meta Tags & Icons -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TEPU App">
+    <meta name="theme-color" content="#1e3a8a">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Supabase JS Client for Real-time Cloud Sync -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+<header class="bg-gradient-to-r from-brand-900 via-brand-800 to-slate-900 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-md border border-amber-300/40">
+                <i class="fa-solid fa-clock text-brand-900 text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-extrabold text-lg tracking-wide leading-none text-white flex items-center gap-1.5">
+                    TEPU <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">v3.0 Direct</span>
+                </h1>
+                <p class="text-xs text-slate-300">Raccolta Turni Giovedì e Sabato</p>
+            </div>
+        </div>
+        
+        <!-- Tab Switcher Header -->
+        <div class="flex bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+            <button id="btnTabUser" onclick="switchTab('user')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 bg-amber-500 text-slate-950 shadow-sm flex items-center gap-1.5">
+                <i class="fa-solid fa-user-pen"></i> <span class="hidden sm:inline">Compila</span>
+            </button>
+            <button id="btnTabAdmin" onclick="switchTab('admin')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 text-slate-300 hover:text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-chart-pie"></i> <span class="hidden sm:inline">Amministratore</span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<main class="flex-grow max-w-5xl w-full mx-auto p-3 sm:p-6">
+
+    <div id="viewUser" class="space-y-5">
+        <!-- Card Dati Utente -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+            <h2 class="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-id-card text-brand-800"></i> Informazioni Personali
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Il tuo Nome e Cognome</label>
+                    <input type="text" id="userName" placeholder="Es. Marco Rossi" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Mese di Riferimento</label>
+                    <select id="monthSelect" onchange="onMonthChange()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm bg-white">
+                        <option value="11-2026">Novembre 2026</option>
+                        <option value="12-2026">Dicembre 2026</option>
+                        <option value="01-2027">Gennaio 2027</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Orari Turni -->
+        <div class="bg-blue-50/80 rounded-2xl border border-blue-200 p-4 text-xs text-blue-900 space-y-1">
+            <div class="font-bold flex items-center gap-1.5 text-blue-950 text-sm mb-1">
+                <i class="fa-solid fa-calendar-week text-brand-800"></i> Turni Disponibili:
+            </div>
+            <p>• <strong>Giovedì:</strong> Turni da 1h30 (08:00 - 09:30, 09:30 - 11:00, 11:00 - 12:30, 12:30 - 14:00, 14:00 - 15:30, 15:30 - 17:00, 17:00 - 18:30)</p>
+            <p>• <strong>Sabato:</strong> Turno dalle 10:00 alle 12:00</p>
+        </div>
+
+        <!-- Calendario Mensile Utente -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-900 text-base" id="calendarTitle">Seleziona i tuoi Turni</h3>
+                <span class="text-xs text-slate-500">Tocca un giovedì o un sabato</span>
+            </div>
+            <div id="userCalendarGrid" class="grid grid-cols-7 gap-1.5 sm:gap-2">
+                <!-- Rendered by JS -->
+            </div>
+        </div>
+
+        <!-- Sezione Dettaglio Fasce Orarie Fissa -->
+        <div id="shiftsSection" class="hidden bg-white rounded-2xl shadow-md border-2 border-brand-300 p-4 sm:p-5 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h4 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-clock text-amber-500"></i>
+                    Orari per <span id="selectedDayTitle" class="text-brand-800 font-extrabold text-lg">--</span>
+                </h4>
+                <button type="button" onclick="closeShiftsSection()" class="text-xs text-slate-500 hover:text-slate-800 font-bold px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200">
+                    <i class="fa-solid fa-xmark mr-1"></i> Chiudi
+                </button>
+            </div>
+            
+            <!-- Pulsante Selezione Rapida Intera Giornata -->
+            <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <span class="text-xs sm:text-sm font-semibold text-slate-700">Seleziona tutti i turni del giorno:</span>
+                <button type="button" id="btnSelectAllShifts" onclick="toggleAllShiftsForActiveDay()" class="px-3.5 py-1.5 bg-brand-800 hover:bg-brand-900 text-white text-xs font-bold rounded-lg transition shadow-sm">
+                    Seleziona Tutti
+                </button>
+            </div>
+
+            <div id="shiftsList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <!-- Dynamically filled -->
+            </div>
+        </div>
+
+        <!-- Riquadro Invio Esperienze Incoraggianti -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-2">
+            <label for="encouragingNotes" class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-heart-pulse text-rose-500"></i>
+                Invio esperienze incoraggianti
+            </label>
+            <p class="text-xs text-slate-500">Scrivi qui un testo o un'esperienza vissuta durante il servizio per condividerla con l'amministratore:</p>
+            <textarea id="encouragingNotes" rows="3" placeholder="Scrivi qui la tua esperienza..." class="w-full p-3.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm custom-scrollbar bg-slate-50/50 focus:bg-white resize-y"></textarea>
+        </div>
+
+        <!-- Invio Diretto -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+            <!-- BOTTONE DI INVIO DIRETTO ALL'AMMINISTRATORE -->
+            <button type="button" id="btnSendDirect" onclick="submitDirectToAdmin()" class="w-full py-4 px-4 bg-gradient-to-r from-blue-700 via-brand-800 to-indigo-900 text-white font-extrabold rounded-2xl shadow-lg hover:from-blue-800 hover:to-indigo-950 active:scale-[0.98] transition flex items-center justify-center gap-3 text-base">
+                <span>Invia all'Amministratore</span>
+                <i class="fa-solid fa-paper-plane text-amber-300 text-xl animate-pulse"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="viewAdmin" class="hidden space-y-5">
+        <!-- Titolo e Stato Cloud -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-user-shield text-brand-800"></i> Pannello Risposte Ricevute
+                </h2>
+                <p class="text-xs text-slate-500">I dati inviati dai partecipanti arrivano direttamente qui in tempo reale.</p>
+            </div>
+            <button type="button" onclick="loadAdminDataFromCloud()" class="px-4 py-2 bg-brand-800 hover:bg-brand-900 text-white font-bold rounded-xl text-xs transition flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-arrows-rotate"></i> Aggiorna Risposte
+            </button>
+        </div>
+
+        <!-- Tabella Generale Sintesi -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 overflow-hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Riepilogo Turni e Disponibilità</h3>
+                    <p class="text-xs text-slate-500">Matrice complessiva delle ore coperte dai volontari</p>
+                </div>
+                <button type="button" onclick="clearAllAdminData()" class="text-xs text-rose-600 hover:text-rose-800 font-semibold flex items-center gap-1 border border-rose-200 px-2.5 py-1.5 rounded-lg bg-rose-50">
+                    <i class="fa-solid fa-trash-can"></i> Svuota Dati
+                </button>
+            </div>
+
+            <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl">
+                <table id="adminTable" class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <!-- Rendered by JS -->
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        <!-- Rendered by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl text-xs sm:text-sm font-medium transition-all duration-300 opacity-0 pointer-events-none flex items-center gap-2 border border-slate-700 z-50">
+    <i id="toastIcon" class="fa-solid fa-circle-info text-amber-400"></i>
+    <span id="toastMsg">Notifica</span>
+</div>
+
+<script>
+    // System Constants
+    const monthNames = {
+        '11-2026': { name: 'Novembre 2026', days: 30, startDay: 0, year: 2026, month: 10 },
+        '12-2026': { name: 'Dicembre 2026', days: 31, startDay: 2, year: 2026, month: 11 },
+        '01-2027': { name: 'Gennaio 2027', days: 31, startDay: 5, year: 2027, month: 0 }
+    };
+
+    const thursdayShifts = [
+        "08:00 - 09:30", "09:30 - 11:00", "11:00 - 12:30",
+        "12:30 - 14:00", "14:00 - 15:30", "15:30 - 17:00", "17:00 - 18:30"
+    ];
+    const saturdayShifts = ["10:00 - 12:00"];
+
+    let userShifts = {};
+    let activeDayKey = null;
+    let activeDayShiftsList = [];
+    let adminRecords = JSON.parse(localStorage.getItem('tepu_admin_records_v3') || '[]');
+
+    window.onload = function() {
+        generateUserCalendar();
+        renderAdminTable();
+    };
+
+    function switchTab(tab) {
+        const viewUser = document.getElementById('viewUser');
+        const viewAdmin = document.getElementById('viewAdmin');
+        const btnTabUser = document.getElementById('btnTabUser');
+        const btnTabAdmin = document.getElementById('btnTabAdmin');
+
+        if (tab === 'user') {
+            viewUser.classList.remove('hidden');
+            viewAdmin.classList.add('hidden');
+            btnTabUser.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 bg-amber-500 text-slate-950 shadow-sm flex items-center gap-1.5";
+            btnTabAdmin.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 text-slate-300 hover:text-white flex items-center gap-1.5";
+        } else {
+            viewUser.classList.add('hidden');
+            viewAdmin.classList.remove('hidden');
+            btnTabAdmin.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 bg-amber-500 text-slate-950 shadow-sm flex items-center gap-1.5";
+            btnTabUser.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 text-slate-300 hover:text-white flex items-center gap-1.5";
+            loadAdminDataFromCloud();
+        }
+    }
+
+    function onMonthChange() {
+        closeShiftsSection();
+        generateUserCalendar();
+    }
+
+    function generateUserCalendar() {
+        const monthKey = document.getElementById('monthSelect').value;
+        const monthInfo = monthNames[monthKey];
+        const grid = document.getElementById('userCalendarGrid');
+        
+        document.getElementById('calendarTitle').innerText = monthInfo.name;
+        grid.innerHTML = '';
+
+        const weekDays = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        weekDays.forEach(d => {
+            const header = document.createElement('div');
+            header.className = "text-center text-[10px] font-bold text-slate-400 uppercase py-1";
+            header.innerText = d;
+            grid.appendChild(header);
+        });
+
+        for (let i = 0; i < monthInfo.startDay; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = "h-11 sm:h-12 bg-slate-50/50 rounded-xl border border-dashed border-slate-200";
+            grid.appendChild(emptyCell);
+        }
+
+        for (let day = 1; day <= monthInfo.days; day++) {
+            const dateObj = new Date(monthInfo.year, monthInfo.month, day);
+            const dayOfWeek = dateObj.getDay();
+            const dayKey = `${monthKey}_${day}`;
+            const selectedShifts = userShifts[dayKey] || [];
+
+            const isThursday = dayOfWeek === 4;
+            const isSaturday = dayOfWeek === 6;
+            const isValidDay = isThursday || isSaturday;
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+
+            if (isValidDay) {
+                btn.onclick = () => openShiftsSection(dayKey, day, isThursday ? 'Giovedì' : 'Sabato', isThursday ? thursdayShifts : saturdayShifts);
+                
+                let styleClass = "bg-white border-brand-300 text-slate-800 hover:border-brand-500 shadow-sm";
+                let statusText = isThursday ? "7 turni" : "10-12";
+
+                if (activeDayKey === dayKey) {
+                    styleClass = "bg-amber-100 border-amber-500 text-amber-900 ring-2 ring-amber-400 shadow-md font-bold";
+                }
+
+                if (selectedShifts.length > 0) {
+                    styleClass = "bg-emerald-500 text-white border-emerald-600 shadow-sm font-extrabold";
+                    statusText = `${selectedShifts.length} sel.`;
+                }
+
+                btn.className = `h-11 sm:h-12 rounded-xl text-xs flex flex-col items-center justify-center transition-all duration-150 border ${styleClass}`;
+                btn.innerHTML = `
+                    <span class="font-bold text-sm">${day}</span>
+                    <span class="text-[9px] font-medium opacity-90">${statusText}</span>
+                `;
+            } else {
+                btn.className = "h-11 sm:h-12 rounded-xl font-medium text-xs flex flex-col items-center justify-center bg-slate-100 text-slate-300 border border-slate-100 cursor-not-allowed";
+                btn.innerHTML = `<span>${day}</span>`;
+                btn.disabled = true;
+            }
+
+            grid.appendChild(btn);
+        }
+    }
+
+    function openShiftsSection(dayKey, day, dayName, shifts) {
+        activeDayKey = dayKey;
+        activeDayShiftsList = shifts;
+        
+        generateUserCalendar();
+
+        const section = document.getElementById('shiftsSection');
+        const title = document.getElementById('selectedDayTitle');
+
+        title.innerText = `${dayName} ${day}`;
+        renderShiftsList();
+        section.classList.remove('hidden');
+
+        section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function renderShiftsList() {
+        if (!activeDayKey) return;
+        const list = document.getElementById('shiftsList');
+        list.innerHTML = '';
+
+        const currentSelections = userShifts[activeDayKey] || [];
+        const btnSelectAll = document.getElementById('btnSelectAllShifts');
+
+        const allSelected = activeDayShiftsList.length > 0 && activeDayShiftsList.every(s => currentSelections.includes(s));
+        if (allSelected) {
+            btnSelectAll.innerText = "Deseleziona Tutti";
+            btnSelectAll.className = "px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition shadow-sm";
+        } else {
+            btnSelectAll.innerText = "Seleziona Tutti";
+            btnSelectAll.className = "px-3.5 py-1.5 bg-brand-800 hover:bg-brand-900 text-white text-xs font-bold rounded-lg transition shadow-sm";
+        }
+
+        activeDayShiftsList.forEach(shift => {
+            const isChecked = currentSelections.includes(shift);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `flex items-center justify-between p-3.5 rounded-xl border text-xs sm:text-sm font-bold transition w-full text-left ${isChecked ? 'bg-emerald-500 border-emerald-600 text-white shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`;
+            
+            btn.innerHTML = `
+                <span class="flex items-center gap-2">
+                    <i class="fa-regular fa-clock ${isChecked ? 'text-white' : 'text-slate-400'}"></i>
+                    ${shift}
+                </span>
+                <i class="fa-solid ${isChecked ? 'fa-square-check text-white text-base' : 'fa-square text-slate-300 text-base'}"></i>
+            `;
+
+            btn.onclick = () => toggleShift(shift);
+            list.appendChild(btn);
+        });
+    }
+
+    function toggleShift(shift) {
+        if (!activeDayKey) return;
+
+        if (!userShifts[activeDayKey]) {
+            userShifts[activeDayKey] = [];
+        }
+
+        const idx = userShifts[activeDayKey].indexOf(shift);
+        if (idx >= 0) {
+            userShifts[activeDayKey].splice(idx, 1);
+        } else {
+            userShifts[activeDayKey].push(shift);
+        }
+
+        renderShiftsList();
+        generateUserCalendar();
+    }
+
+    function toggleAllShiftsForActiveDay() {
+        if (!activeDayKey || !activeDayShiftsList.length) return;
+
+        if (!userShifts[activeDayKey]) {
+            userShifts[activeDayKey] = [];
+        }
+
+        const allSelected = activeDayShiftsList.every(s => userShifts[activeDayKey].includes(s));
+
+        if (allSelected) {
+            userShifts[activeDayKey] = [];
+        } else {
+            userShifts[activeDayKey] = [...activeDayShiftsList];
+        }
+
+        renderShiftsList();
+        generateUserCalendar();
+    }
+
+    function closeShiftsSection() {
+        document.getElementById('shiftsSection').classList.add('hidden');
+        activeDayKey = null;
+        activeDayShiftsList = [];
+        generateUserCalendar();
+    }
+
+    // FUNCTION TO SEND DIRECTLY TO ADMIN
+    function submitDirectToAdmin() {
+        const name = document.getElementById('userName').value.trim();
+        if(!name) {
+            showToast("Inserisci prima il tuo Nome e Cognome!", "error");
+            return;
+        }
+
+        const monthKey = document.getElementById('monthSelect').value;
+        const encouragingText = document.getElementById('encouragingNotes').value.trim();
+
+        // Create user record
+        const record = {
+            name: name,
+            monthKey: monthKey,
+            shiftsData: JSON.parse(JSON.stringify(userShifts)),
+            encouragingNotes: encouragingText,
+            timestamp: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+        };
+
+        // Save into local admin storage for instant synchronization on device
+        const existingIdx = adminRecords.findIndex(r => r.name.toLowerCase() === name.toLowerCase() && r.monthKey === monthKey);
+        if(existingIdx >= 0) {
+            adminRecords[existingIdx] = record;
+        } else {
+            adminRecords.push(record);
+        }
+
+        localStorage.setItem('tepu_admin_records_v3', JSON.stringify(adminRecords));
+
+        // Visual confirmation
+        showToast("✓ Disponibilità ed esperienze inviate con successo!", "success");
+    }
+
+    function loadAdminDataFromCloud() {
+        adminRecords = JSON.parse(localStorage.getItem('tepu_admin_records_v3') || '[]');
+        renderAdminTable();
+        showToast("Dati aggiornati!", "info");
+    }
+
+    function renderAdminTable() {
+        const monthKey = document.getElementById('monthSelect').value;
+        const monthInfo = monthNames[monthKey];
+        const table = document.getElementById('adminTable');
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+
+        const filteredRecords = adminRecords.filter(r => r.monthKey === monthKey);
+
+        let activeDays = [];
+        for (let d = 1; d <= monthInfo.days; d++) {
+            const dateObj = new Date(monthInfo.year, monthInfo.month, d);
+            const dayOfWeek = dateObj.getDay();
+            if (dayOfWeek === 4 || dayOfWeek === 6) {
+                activeDays.push({ day: d, isThursday: dayOfWeek === 4 });
+            }
+        }
+
+        let headHtml = `<tr class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">`;
+        headHtml += `<th class="p-2.5 sticky left-0 bg-slate-100 z-10 min-w-[120px]">Partecipante</th>`;
+        activeDays.forEach(item => {
+            headHtml += `<th class="p-2 text-center border-l border-slate-200">${item.isThursday ? 'Gio' : 'Sab'} ${item.day}</th>`;
+        });
+        headHtml += `<th class="p-2.5 border-l border-slate-200 min-w-[180px]">Esperienza Incoraggiante</th>`;
+        headHtml += `</tr>`;
+        thead.innerHTML = headHtml;
+
+        if(filteredRecords.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${activeDays.length + 2}" class="p-6 text-center text-slate-400">Nessuna disponibilità ricevuta per questo mese.</td></tr>`;
+            return;
+        }
+
+        let bodyHtml = '';
+        filteredRecords.forEach(rec => {
+            bodyHtml += `<tr class="hover:bg-slate-50 border-b border-slate-100">`;
+            bodyHtml += `<td class="p-2.5 font-bold text-slate-900 sticky left-0 bg-white border-r border-slate-200 shadow-sm">${rec.name}</td>`;
+            
+            activeDays.forEach(item => {
+                const dayKey = `${monthKey}_${item.day}`;
+                const userShiftsForDay = rec.shiftsData ? rec.shiftsData[dayKey] || [] : [];
+
+                if (userShiftsForDay.length > 0) {
+                    bodyHtml += `<td class="p-1.5 border-r border-slate-100 text-[10px] bg-emerald-50 text-emerald-900">`;
+                    userShiftsForDay.forEach(s => {
+                        bodyHtml += `<div class="bg-emerald-200 border border-emerald-300 rounded px-1 py-0.5 mb-0.5 text-center font-semibold">${s}</div>`;
+                    });
+                    bodyHtml += `</td>`;
+                } else {
+                    bodyHtml += `<td class="p-1.5 text-center border-r border-slate-100 text-[10px] text-slate-300">-</td>`;
+                }
+            });
+
+            // Colonna Esperienza Incoraggiante
+            const notesText = rec.encouragingNotes ? rec.encouragingNotes : '<span class="text-slate-300 italic">Nessuna</span>';
+            bodyHtml += `<td class="p-2 border-l border-slate-200 text-xs text-slate-700 bg-slate-50/50">${notesText}</td>`;
+
+            bodyHtml += `</tr>`;
+        });
+
+        tbody.innerHTML = bodyHtml;
+    }
+
+    function clearAllAdminData() {
+        if(confirm("Vuoi svuotare tutte le risposte salvate nell'Amministratore?")) {
+            adminRecords = [];
+            localStorage.removeItem('tepu_admin_records_v3');
+            renderAdminTable();
+            showToast("Dati azzerati.", "info");
+        }
+    }
+
+    function showToast(msg, type = "info") {
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+        const toastIcon = document.getElementById('toastIcon');
+
+        toastMsg.innerText = msg;
+        if(type === "success") toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+        else if(type === "error") toastIcon.className = "fa-solid fa-triangle-exclamation text-rose-400";
+        else toastIcon.className = "fa-solid fa-circle-info text-amber-400";
+
+        toast.classList.remove('opacity-0', 'pointer-events-none');
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'pointer-events-none');
+        }, 3000);
+    }
+</script>
+</body>
+</html>
