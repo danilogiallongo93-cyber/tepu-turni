@@ -35,7 +35,6 @@
       gap: 0.5rem;
     }
 
-    /* Logo Fontana SVG */
     .fountain-logo {
       width: 48px;
       height: 48px;
@@ -92,7 +91,7 @@
       font-weight: bold;
     }
 
-    input[type="text"], textarea {
+    input[type="text"], select, textarea {
       width: 100%;
       padding: 0.6rem;
       border: 1px solid var(--border-color);
@@ -106,7 +105,6 @@
       min-height: 80px;
     }
 
-    /* Stile Calendario a Tendina (Accordion) */
     .calendar-container {
       display: flex;
       flex-direction: column;
@@ -240,15 +238,11 @@
 <body>
 
   <header>
-    <!-- Logo Fontana Blu e Dorato -->
     <svg class="fountain-logo" id="logoSvg" viewBox="0 0 100 100">
       <circle cx="50" cy="50" r="48" fill="#003366" stroke="#d4af37" stroke-width="3"/>
-      <!-- Basamento fontana -->
       <path d="M 30 75 L 70 75 L 65 68 L 35 68 Z" fill="#d4af37"/>
       <path d="M 38 68 L 62 68 L 58 55 L 42 55 Z" fill="#d4af37"/>
-      <!-- Coppa fontana -->
       <path d="M 25 55 Q 50 62 75 55 Q 70 45 50 47 Q 30 45 25 55 Z" fill="#d4af37"/>
-      <!-- Zampilli d'acqua -->
       <path d="M 50 47 Q 50 20 30 30" fill="none" stroke="#66b2ff" stroke-width="4" stroke-linecap="round"/>
       <path d="M 50 47 Q 50 20 70 30" fill="none" stroke="#66b2ff" stroke-width="4" stroke-linecap="round"/>
       <path d="M 50 47 Q 50 12 50 22" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
@@ -257,8 +251,6 @@
   </header>
 
   <div class="container">
-    
-    <!-- Descrizione Turni -->
     <div class="info-box">
       <strong>Informazioni sui Turni:</strong><br>
       • <strong>Giovedì:</strong> Turni da 1,5 ore (dalle 8:00 alle 18:30). Puoi selezionare i singoli turni o l'intera giornata.<br>
@@ -272,13 +264,29 @@
         <input type="text" id="userName" placeholder="Es. Mario Rossi">
       </div>
 
-      <!-- Vista Calendario a Tendina -->
-      <label>Seleziona i giorni per vedere i turni:</label>
-      <div class="calendar-container" id="datesContainer">
-        <!-- Date e tendine generate via JS -->
+      <!-- Tendina Mesi -->
+      <div class="form-group">
+        <label for="selectMonth">Seleziona il Mese:</label>
+        <select id="selectMonth" onchange="updateMonthTitle()">
+          <option value="Gennaio">Gennaio</option>
+          <option value="Febbraio">Febbraio</option>
+          <option value="Marzo">Marzo</option>
+          <option value="Aprile">Aprile</option>
+          <option value="Maggio">Maggio</option>
+          <option value="Giugno">Giugno</option>
+          <option value="Luglio">Luglio</option>
+          <option value="Agosto">Agosto</option>
+          <option value="Settembre">Settembre</option>
+          <option value="Ottobre">Ottobre</option>
+          <option value="Novembre">Novembre</option>
+          <option value="Dicembre">Dicembre</option>
+        </select>
       </div>
 
-      <!-- Campo Esperienze Incoraggianti -->
+      <label>Seleziona i giorni per vedere i turni:</label>
+      <div class="calendar-container" id="datesContainer">
+      </div>
+
       <div class="form-group" style="margin-top: 1.5rem;">
         <label for="userExperience">Esperienze incoraggianti avute durante il servizio (opzionale):</label>
         <textarea id="userExperience" placeholder="Scrivi qui eventuali esperienze positive della giornata..."></textarea>
@@ -290,7 +298,6 @@
       </div>
     </div>
 
-    <!-- Area Riservata Admin (Invisibile di default) -->
     <div class="card" id="adminSection" style="display: none;">
       <h2>Area Amministratore</h2>
       <button class="btn" onclick="exportData()" style="margin-bottom: 1rem;">📥 Scarica File Dati (JSON)</button>
@@ -299,20 +306,19 @@
           <thead>
             <tr>
               <th>Partecipante</th>
+              <th>Mese</th>
               <th>Data</th>
               <th>Turno / Disponibilità</th>
               <th>Esperienza</th>
             </tr>
           </thead>
           <tbody>
-            <!-- Dati admin -->
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- Modal Login Admin -->
   <div class="modal" id="loginModal">
     <div class="modal-content">
       <h3>Accesso Amministratore</h3>
@@ -341,16 +347,27 @@
       "10:00 - 12:00"
     ];
 
+    const months = [
+      "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", 
+      "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+    ];
+
+    function initMonthSelector() {
+      const select = document.getElementById('selectMonth');
+      const currentMonthIndex = new Date().getMonth();
+      select.selectedIndex = currentMonthIndex;
+    }
+
     function getTurnDays() {
       const days = [];
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth();
-      const totalDays = new Date(year, month + 1, 0).getDate();
+      const selectedMonthIndex = document.getElementById('selectMonth').selectedIndex;
+      const year = new Date().getFullYear(); 
+
+      const totalDays = new Date(year, selectedMonthIndex + 1, 0).getDate();
 
       for (let i = 1; i <= totalDays; i++) {
-        const date = new Date(year, month, i);
-        const dayOfWeek = date.getDay(); // 4 = Giovedì, 6 = Sabato
+        const date = new Date(year, selectedMonthIndex, i);
+        const dayOfWeek = date.getDay();
         if (dayOfWeek === 4 || dayOfWeek === 6) {
           const formattedDate = date.toLocaleDateString('it-IT', {
             weekday: 'long',
@@ -392,16 +409,19 @@
       }).join('');
     }
 
+    document.getElementById('selectMonth').addEventListener('change', renderDays);
+
     function generateText() {
       const name = document.getElementById('userName').value.trim();
       const experience = document.getElementById('userExperience').value.trim();
+      const month = document.getElementById('selectMonth').value;
 
       if (!name) {
         alert('Inserisci il tuo nome prima di inviare!');
         return null;
       }
 
-      let text = `*Disponibilità Turni TEPU*\n*Proclamatore:* ${name}\n\n`;
+      let text = `*Disponibilità Turni TEPU*\n*Mese:* ${month}\n*Proclamatore:* ${name}\n\n`;
       const days = getTurnDays();
       let selectedAny = false;
 
@@ -441,6 +461,7 @@
     function saveLocally() {
       const name = document.getElementById('userName').value.trim();
       const experience = document.getElementById('userExperience').value.trim();
+      const month = document.getElementById('selectMonth').value;
 
       if (!name) {
         alert('Inserisci il tuo nome!');
@@ -455,6 +476,7 @@
         checkboxes.forEach(cb => {
           records.push({
             name: name,
+            month: month,
             date: day.label,
             time: cb.value,
             experience: experience,
@@ -468,7 +490,6 @@
       loadAdminTable();
     }
 
-    // Gestione Triplo Clic (sia sul testo che sul logo) per Accesso Admin
     let clickCount = 0;
     let clickTimer = null;
 
@@ -508,6 +529,7 @@
       tbody.innerHTML = records.map(r => `
         <tr>
           <td>${r.name}</td>
+          <td>${r.month}</td>
           <td>${r.date}</td>
           <td>${r.time}</td>
           <td>${r.experience || '-'}</td>
@@ -525,6 +547,7 @@
       a.click();
     }
 
+    initMonthSelector();
     renderDays();
   </script>
 </body>
