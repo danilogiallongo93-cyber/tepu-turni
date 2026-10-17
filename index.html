@@ -11,6 +11,7 @@
       --accent-color: #28a745;
       --border-color: #ccc;
       --text-color: #333;
+      --gold-color: #d4af37;
     }
 
     body {
@@ -27,6 +28,19 @@
       padding: 1rem;
       text-align: center;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    /* Logo Fontana SVG */
+    .fountain-logo {
+      width: 48px;
+      height: 48px;
+      cursor: pointer;
+      user-select: none;
     }
 
     header h1 {
@@ -92,33 +106,53 @@
       min-height: 80px;
     }
 
-    .grid-dates {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 1rem;
+    /* Stile Calendario a Tendina (Accordion) */
+    .calendar-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
       margin-top: 1rem;
     }
 
-    .date-card {
+    details.day-accordion {
       border: 1px solid var(--border-color);
-      padding: 1rem;
       border-radius: 6px;
       background-color: #fafafa;
+      overflow: hidden;
+      transition: background-color 0.2s;
     }
 
-    .date-card h3 {
-      margin: 0 0 0.5rem 0;
-      font-size: 1rem;
+    details.day-accordion[open] {
+      background-color: #fff;
+      border-color: var(--primary-color);
+    }
+
+    summary.day-summary {
+      padding: 0.8rem 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
       color: var(--primary-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .options-group {
+    summary.day-summary:hover {
+      background-color: #f1f3f5;
+    }
+
+    .accordion-content {
+      padding: 0 1rem 1rem 1rem;
       display: flex;
       flex-direction: column;
       gap: 0.4rem;
+      border-top: 1px solid #eee;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
     }
 
-    .options-group label {
+    .accordion-content label {
       font-weight: normal;
       display: flex;
       align-items: center;
@@ -206,6 +240,19 @@
 <body>
 
   <header>
+    <!-- Logo Fontana Blu e Dorato -->
+    <svg class="fountain-logo" id="logoSvg" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="48" fill="#003366" stroke="#d4af37" stroke-width="3"/>
+      <!-- Basamento fontana -->
+      <path d="M 30 75 L 70 75 L 65 68 L 35 68 Z" fill="#d4af37"/>
+      <path d="M 38 68 L 62 68 L 58 55 L 42 55 Z" fill="#d4af37"/>
+      <!-- Coppa fontana -->
+      <path d="M 25 55 Q 50 62 75 55 Q 70 45 50 47 Q 30 45 25 55 Z" fill="#d4af37"/>
+      <!-- Zampilli d'acqua -->
+      <path d="M 50 47 Q 50 20 30 30" fill="none" stroke="#66b2ff" stroke-width="4" stroke-linecap="round"/>
+      <path d="M 50 47 Q 50 20 70 30" fill="none" stroke="#66b2ff" stroke-width="4" stroke-linecap="round"/>
+      <path d="M 50 47 Q 50 12 50 22" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    </svg>
     <h1 id="logo">TEPU - Disponibilità Turni</h1>
   </header>
 
@@ -225,8 +272,10 @@
         <input type="text" id="userName" placeholder="Es. Mario Rossi">
       </div>
 
-      <div class="grid-dates" id="datesContainer">
-        <!-- Date e turni generati via JS -->
+      <!-- Vista Calendario a Tendina -->
+      <label>Seleziona i giorni per vedere i turni:</label>
+      <div class="calendar-container" id="datesContainer">
+        <!-- Date e tendine generate via JS -->
       </div>
 
       <!-- Campo Esperienze Incoraggianti -->
@@ -277,7 +326,6 @@
   </div>
 
   <script>
-    // Turni specifici del Giovedì (1h30m)
     const thursdayShifts = [
       "Tutto il giorno (8:00 - 18:30)",
       "08:00 - 09:30",
@@ -289,12 +337,10 @@
       "17:00 - 18:30"
     ];
 
-    // Turno del Sabato
     const saturdayShifts = [
       "10:00 - 12:00"
     ];
 
-    // Generazione dei giorni del mese corrente (Giovedì e Sabato)
     function getTurnDays() {
       const days = [];
       const now = new Date();
@@ -321,7 +367,6 @@
       return days;
     }
 
-    // Rendering delle schede giornate e relativi turni
     function renderDays() {
       const container = document.getElementById('datesContainer');
       const days = getTurnDays();
@@ -329,9 +374,12 @@
       container.innerHTML = days.map(day => {
         const shifts = day.isThursday ? thursdayShifts : saturdayShifts;
         return `
-          <div class="date-card">
-            <h3>${day.label}</h3>
-            <div class="options-group">
+          <details class="day-accordion">
+            <summary class="day-summary">
+              <span>📅 ${day.label}</span>
+              <span style="font-size: 0.8rem; font-weight: normal; color: #666;">(Clicca per i turni)</span>
+            </summary>
+            <div class="accordion-content">
               ${shifts.map(shift => `
                 <label>
                   <input type="checkbox" name="${day.id}" value="${shift}">
@@ -339,12 +387,11 @@
                 </label>
               `).join('')}
             </div>
-          </div>
+          </details>
         `;
       }).join('');
     }
 
-    // Generazione messaggio formattato per WhatsApp
     function generateText() {
       const name = document.getElementById('userName').value.trim();
       const experience = document.getElementById('userExperience').value.trim();
@@ -379,7 +426,6 @@
       return text;
     }
 
-    // Copia e apre WhatsApp
     function sendWhatsApp() {
       const text = generateText();
       if (!text) return;
@@ -392,7 +438,6 @@
       });
     }
 
-    // Salva localmente
     function saveLocally() {
       const name = document.getElementById('userName').value.trim();
       const experience = document.getElementById('userExperience').value.trim();
@@ -423,11 +468,11 @@
       loadAdminTable();
     }
 
-    // Gestione Triplo Clic sul Titolo per Accesso Admin
+    // Gestione Triplo Clic (sia sul testo che sul logo) per Accesso Admin
     let clickCount = 0;
     let clickTimer = null;
 
-    document.getElementById('logo').addEventListener('click', () => {
+    function handleAdminTrigger() {
       clickCount++;
       if (clickCount === 1) {
         clickTimer = setTimeout(() => { clickCount = 0; }, 1000);
@@ -436,7 +481,10 @@
         clickCount = 0;
         document.getElementById('loginModal').style.display = 'flex';
       }
-    });
+    }
+
+    document.getElementById('logo').addEventListener('click', handleAdminTrigger);
+    document.getElementById('logoSvg').addEventListener('click', handleAdminTrigger);
 
     function closeLoginModal() {
       document.getElementById('loginModal').style.display = 'none';
@@ -477,7 +525,6 @@
       a.click();
     }
 
-    // Inizializzazione
     renderDays();
   </script>
 </body>
