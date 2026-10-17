@@ -50,6 +50,16 @@
       margin-bottom: 1.5rem;
     }
 
+    .info-box {
+      background-color: #e9ecef;
+      border-left: 4px solid var(--primary-color);
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
     h2 {
       margin-top: 0;
       color: var(--primary-color);
@@ -68,12 +78,18 @@
       font-weight: bold;
     }
 
-    input[type="text"], select {
+    input[type="text"], textarea {
       width: 100%;
       padding: 0.6rem;
       border: 1px solid var(--border-color);
       border-radius: 4px;
       box-sizing: border-box;
+      font-family: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
     }
 
     .grid-dates {
@@ -93,6 +109,7 @@
     .date-card h3 {
       margin: 0 0 0.5rem 0;
       font-size: 1rem;
+      color: var(--primary-color);
     }
 
     .options-group {
@@ -107,6 +124,7 @@
       align-items: center;
       gap: 0.5rem;
       cursor: pointer;
+      font-size: 0.9rem;
     }
 
     .btn {
@@ -192,15 +210,29 @@
   </header>
 
   <div class="container">
+    
+    <!-- Descrizione Turni -->
+    <div class="info-box">
+      <strong>Informazioni sui Turni:</strong><br>
+      • <strong>Giovedì:</strong> Turni da 1,5 ore (dalle 8:00 alle 18:30). Puoi selezionare i singoli turni o l'intera giornata.<br>
+      • <strong>Sabato:</strong> Unico turno dalle 10:00 alle 12:00.
+    </div>
+
     <div class="card">
       <h2>Inserimento Disponibilità</h2>
       <div class="form-group">
-        <label for="userName">Il tuo Nome e Cognome:</label>
+        <label for="userName">Nome e Cognome Proclamatore:</label>
         <input type="text" id="userName" placeholder="Es. Mario Rossi">
       </div>
 
       <div class="grid-dates" id="datesContainer">
-        <!-- Date generate via JS -->
+        <!-- Date e turni generati via JS -->
+      </div>
+
+      <!-- Campo Esperienze Incoraggianti -->
+      <div class="form-group" style="margin-top: 1.5rem;">
+        <label for="userExperience">Esperienze incoraggianti avute durante il servizio (opzionale):</label>
+        <textarea id="userExperience" placeholder="Scrivi qui eventuali esperienze positive della giornata..."></textarea>
       </div>
 
       <div class="btn-group">
@@ -219,7 +251,8 @@
             <tr>
               <th>Partecipante</th>
               <th>Data</th>
-              <th>Fascia Oraria</th>
+              <th>Turno / Disponibilità</th>
+              <th>Esperienza</th>
             </tr>
           </thead>
           <tbody>
@@ -244,7 +277,24 @@
   </div>
 
   <script>
-    // Generazione automatica dei giovedì e sabati del mese corrente
+    // Turni specifici del Giovedì (1h30m)
+    const thursdayShifts = [
+      "Tutto il giorno (8:00 - 18:30)",
+      "08:00 - 09:30",
+      "09:30 - 11:00",
+      "11:00 - 12:30",
+      "12:30 - 14:00",
+      "14:00 - 15:30",
+      "15:30 - 17:00",
+      "17:00 - 18:30"
+    ];
+
+    // Turno del Sabato
+    const saturdayShifts = [
+      "10:00 - 12:00"
+    ];
+
+    // Generazione dei giorni del mese corrente (Giovedì e Sabato)
     function getTurnDays() {
       const days = [];
       const now = new Date();
@@ -271,35 +321,40 @@
       return days;
     }
 
-    // Rendering dei giorni nel form
+    // Rendering delle schede giornate e relativi turni
     function renderDays() {
       const container = document.getElementById('datesContainer');
       const days = getTurnDays();
       
-      container.innerHTML = days.map(day => `
-        <div class="date-card">
-          <h3>${day.label}</h3>
-          <div class="options-group">
-            ${day.isThursday ? `
-              <label><input type="checkbox" name="${day.id}" value="Mattina (9:00-12:00)"> Mattina (9:00 - 12:00)</label>
-              <label><input type="checkbox" name="${day.id}" value="Pomeriggio (15:00-18:00)"> Pomeriggio (15:00 - 18:00)</label>
-            ` : `
-              <label><input type="checkbox" name="${day.id}" value="Mattina (9:00-13:00)"> Mattina (9:00 - 13:00)</label>
-            `}
+      container.innerHTML = days.map(day => {
+        const shifts = day.isThursday ? thursdayShifts : saturdayShifts;
+        return `
+          <div class="date-card">
+            <h3>${day.label}</h3>
+            <div class="options-group">
+              ${shifts.map(shift => `
+                <label>
+                  <input type="checkbox" name="${day.id}" value="${shift}">
+                  ${shift}
+                </label>
+              `).join('')}
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
-    // Genera il testo per WhatsApp
+    // Generazione messaggio formattato per WhatsApp
     function generateText() {
       const name = document.getElementById('userName').value.trim();
+      const experience = document.getElementById('userExperience').value.trim();
+
       if (!name) {
         alert('Inserisci il tuo nome prima di inviare!');
         return null;
       }
 
-      let text = `*Disponibilità Turni TEPU*\n*Partecipante:* ${name}\n\n`;
+      let text = `*Disponibilità Turni TEPU*\n*Proclamatore:* ${name}\n\n`;
       const days = getTurnDays();
       let selectedAny = false;
 
@@ -307,35 +362,41 @@
         const checkboxes = document.querySelectorAll(`input[name="${day.id}"]:checked`);
         if (checkboxes.length > 0) {
           selectedAny = true;
-          const choices = Array.from(checkboxes).map(cb => cb.value).join(', ');
-          text += `📅 *${day.label}*: ${choices}\n`;
+          const choices = Array.from(checkboxes).map(cb => cb.value).join('\n  • ');
+          text += `📅 *${day.label}*:\n  • ${choices}\n\n`;
         }
       });
 
-      if (!selectedAny) {
-        alert('Seleziona almeno una disponibilità!');
+      if (experience) {
+        text += `✨ *Esperienze incoraggianti:*\n${experience}\n`;
+      }
+
+      if (!selectedAny && !experience) {
+        alert('Seleziona almeno un turno o inserisci un\'esperienza!');
         return null;
       }
 
       return text;
     }
 
-    // Copia e avvisa per WhatsApp
+    // Copia e apre WhatsApp
     function sendWhatsApp() {
       const text = generateText();
       if (!text) return;
 
       navigator.clipboard.writeText(text).then(() => {
-        alert('Testo copiato negli appunti!\nOra si aprirà WhatsApp: incolla il messaggio nella chat.');
+        alert('Testo copiato!\nSi aprirà WhatsApp: incolla il messaggio nella chat con l\'amministratore.');
         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
       }).catch(() => {
         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
       });
     }
 
-    // Salva i dati localmente nel browser
+    // Salva localmente
     function saveLocally() {
       const name = document.getElementById('userName').value.trim();
+      const experience = document.getElementById('userExperience').value.trim();
+
       if (!name) {
         alert('Inserisci il tuo nome!');
         return;
@@ -351,17 +412,18 @@
             name: name,
             date: day.label,
             time: cb.value,
+            experience: experience,
             timestamp: new Date().toISOString()
           });
         });
       });
 
       localStorage.setItem('tepu_records', JSON.stringify(records));
-      alert('Disponibilità salvate sul dispositivo!');
+      alert('Disponibilità salvate localmente!');
       loadAdminTable();
     }
 
-    // Gestione Trattino/Triplo Tocco per Admin
+    // Gestione Triplo Clic sul Titolo per Accesso Admin
     let clickCount = 0;
     let clickTimer = null;
 
@@ -400,6 +462,7 @@
           <td>${r.name}</td>
           <td>${r.date}</td>
           <td>${r.time}</td>
+          <td>${r.experience || '-'}</td>
         </tr>
       `).join('');
     }
